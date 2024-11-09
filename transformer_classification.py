@@ -1,3 +1,18 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# # Erklärung der Imports
+# 
+# - `torch`: PyTorch-Bibliothek für Deep Learning
+# - `transformers`: Hugging Face Transformers-Bibliothek für State-of-the-Art NLP-Modelle
+# - `datasets`: Hugging Face Datasets-Bibliothek für einfachen Zugriff auf NLP-Datensätze
+# - `numpy`: Numerische Berechnungen und Array-Operationen
+# - `pandas`: Datenmanipulation und -analyse
+# - `matplotlib`: Plotting und Visualisierung
+# - `sklearn`: Scikit-learn für Machine Learning-Algorithmen und Metriken
+
+# In[156]:
+
 
 import torch
 import os
@@ -19,6 +34,38 @@ from torch import nn
 #ggplot' ist ein spezifischer Stil, der von der R-Programmiersprache und dem ggplot2-Paket inspiriert ist. Dieser Stil erzeugt Plots mit einem grauen Hintergrund und weißen Gitterlinien
 plt.style.use('ggplot')
 
+
+# # Seed-Einstellung für Reproduzierbarkeit
+# 
+# Dieser Code-Abschnitt stellt die Reproduzierbarkeit der Ergebnisse sicher, indem er die Zufallszahlengeneratoren für verschiedene Komponenten auf einen festen Wert setzt.
+# 
+# ## Detaillierte Erklärung
+# 
+# 1. **Seed-Definition**
+#    - Definiert eine Seed-Zahl. 42 ist eine beliebte Wahl, aber jede Zahl könnte verwendet werden.
+# 
+# 2. **NumPy Seed**
+#    - Setzt den Seed für NumPy's Zufallszahlengenerator.
+# 
+# 3. **PyTorch CPU Seed**
+#    - Setzt den Seed für PyTorch's CPU-Zufallszahlengenerator.
+# 
+# 4. **PyTorch GPU Seed**
+#    - Setzt den Seed für PyTorch's GPU-Zufallszahlengenerator.
+# 
+# 5. **cuDNN Determinismus**
+#    - Sorgt dafür, dass cuDNN deterministische Algorithmen verwendet.
+# 
+# 6. **cuDNN Benchmark**
+#    - Ermöglicht cuDNN, die optimale Algorithmus-Implementierung für die gegebene Hardware zu wählen.
+# 
+# ## Hinweis
+# 
+# Die letzte Einstellung (cuDNN Benchmark) kann die vollständige Reproduzierbarkeit über verschiedene Hardware-Konfigurationen hinweg beeinträchtigen. Wenn absolute Reproduzierbarkeit wichtiger ist als Leistung, sollte diese Option möglicherweise deaktiviert werden.
+
+# In[157]:
+
+
 # Set seed.
 seed = 42
 np.random.seed(seed)
@@ -27,13 +74,86 @@ torch.cuda.manual_seed(seed)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = True
 
+
+# # Verzeichnisstruktur und Datenzugriff
+# 
+# Dieser Code-Abschnitt richtet die Verzeichnisstruktur für das Projekt ein und zeigt den Inhalt wichtiger Verzeichnisse an.
+# 
+# 
+# ## Hinweis
+# 
+# Dieser Code geht davon aus, dass der IMDB-Datensatz bereits heruntergeladen und in einem Verzeichnis namens 'aclImdb' im aktuellen Arbeitsverzeichnis gespeichert ist. Die Ausgabe der letzten beiden Zeilen wird die Struktur und den Inhalt des Datensatzes anzeigen.
+
+# In[158]:
+
+
 OUTPUTS_DIR = 'outputs'
 os.makedirs(OUTPUTS_DIR, exist_ok=True)
-data_dir = os.path.join('extracted_data/aclImdb/aclImdb/')
+data_dir = os.path.join('data/aclImdb/aclImdb/')
 dataset_dir = os.path.join(data_dir)
 train_dir = os.path.join(dataset_dir, 'train')
 print(os.listdir(dataset_dir))
 print(os.listdir(train_dir))
+
+
+# # Wichtige Konfigurationsvariablen
+# 
+# ## Detaillierte Erklärung
+# 
+# 1. **MAX_LEN = 1024**
+#    - Maximale Länge der Eingabesequenzen in Token.
+# 
+# 2. **NUM_WORDS = 32000**
+#    - Größe des Vokabulars. Es werden die 32.000 häufigsten Wörter verwendet.
+# 
+# 3. **BATCH_SIZE = 32**
+#    - Anzahl der Beispiele, die in einem Trainingsschritt verarbeitet werden.
+# 
+# 4. **VALID_SPLIT = 0.20**
+#    - 20% der Trainingsdaten werden für die Validierung verwendet.
+# 
+# 5. **EPOCHS = 30**
+#    - Anzahl der vollständigen Durchläufe durch den Trainingsdatensatz.
+# 
+# 6. **LR = 0.00001**
+#    - Lernrate für den Optimierungsalgorithmus (sehr kleine Schritte).
+# 
+# Diese Variablen steuern wichtige Aspekte des Modelltrainings und der Datenverarbeitung. Sie können angepasst werden, um die Leistung des Modells zu optimieren oder an unterschiedliche Hardwareressourcen anzupassen.
+
+# In[159]:
+
+
+MAX_LEN = 1024
+# Use these many top words from the dataset. If -1, use all words.
+NUM_WORDS = 32000 # Vocabulary size.
+# Batch size.
+BATCH_SIZE = 32
+VALID_SPLIT = 0.20
+EPOCHS = 100
+LR = 0.00001
+
+
+# Model parameters.
+EMBED_DIM = 256
+NUM_ENCODER_LAYERS = 3
+NUM_HEADS = 4
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(DEVICE)
+
+
+# # Daten Laden und Verarbeiten
+# 
+# ## Funktion `load_data(directory)`
+# 
+# Diese Funktion lädt Textdaten und ihre Bezeichnungen aus einem gegebenen Verzeichnis.
+# 
+# ### Prozess:
+# 1. Durchsucht 'pos' und 'neg' Unterverzeichnisse
+# 2. Liest jede Textdatei
+# 3. Speichert Texte und entsprechende Bezeichnungen (1 für positiv, 0 für negativ)
+
+# In[160]:
+
 
 def load_data(directory):
     texts = []
@@ -57,6 +177,52 @@ print(f"Training set: {len(train_texts)} reviews")
 print(f"Test set: {len(test_texts)} reviews")
 print(train_texts[5])
 
+
+# # Sonderzeichen und Punkte bei Transformer-Training
+# 
+# ## Vorteile der Entfernung:
+# 
+# 1. **Reduzierte Vokabulargröße**: 
+#    - Weniger einzigartige Token
+#    - Potenziell schnelleres Training
+# 
+# 2. **Fokus auf Wortbedeutung**: 
+#    - Modell konzentriert sich mehr auf Wörter statt Interpunktion
+# 
+# 3. **Konsistenz**: 
+#    - Gleiche Wörter werden immer gleich behandelt
+# 
+# ## Nachteile der Entfernung:
+# 
+# 1. **Verlust von Informationen**: 
+#    - Interpunktion kann bedeutungstragend sein
+#    - Satzstruktur geht verloren
+# 
+# 2. **Einschränkung der Modellfähigkeiten**: 
+#    - Moderne Transformer können oft mit Interpunktion umgehen
+#    - Entfernung könnte Modell-Leistung einschränken
+# 
+# 3. **Weniger natürliche Sprache**: 
+#    - Text ohne Interpunktion ist weniger repräsentativ für echte Sprache
+# 
+# ## Empfehlung:
+# 
+# 1. **Experimentieren**: 
+#    - Testen Sie beide Ansätze und vergleichen Sie die Ergebnisse
+# 
+# 2. **Aufgabenspezifische Entscheidung**: 
+#    - Für reine Sentiment-Analyse könnte Entfernung okay sein
+#    - Für komplexere Aufgaben besser beibehalten
+# 
+# 3. **Minimale Vorverarbeitung**: 
+#    - Moderne Transformer profitieren oft von minimaler Vorverarbeitung
+# 
+# 4. **Konsistenz**: 
+#    - Gleiche Vorverarbeitung für Training und Inferenz
+
+# In[161]:
+
+
 def clean_text(text):
     # Entfernt alle Sonderzeichen und Zahlen
     text = re.sub(r'[^a-zA-Z\s]', '', text)
@@ -74,6 +240,9 @@ print(train_texts[0])
 
 
 
+# In[162]:
+
+
 # Teilt den Text in Wörter auf
 def tokenize(text):
     # Entfernt Sonderzeichen und wandelt in Kleinbuchstaben um
@@ -85,6 +254,41 @@ def tokenize(text):
 train_tokens = [tokenize(text) for text in train_texts]
 test_tokens = [tokenize(text) for text in test_texts]
 print(train_tokens[0])
+
+
+# ### Erklärung des Codes
+# 
+# 1. **Wörter sammeln**: Erstellt eine Liste, die alle Wörter aus den Token-Listen in den Trainingsdaten enthält.
+# 
+# 2. **Wortzähldaten erstellen**: Erstellt ein Wörterbuch, das jedes Wort mit seiner Häufigkeit speichert.
+# 
+# 3. **Vokabular aufbauen**: Baut ein Vokabular auf, das mit `<PAD>` und `<UNK>` beginnt und nur Wörter enthält, die öfter als einmal vorkommen. Dadurch werden seltene Wörter ausgeschlossen.
+# 
+# 4. **Wort-zu-Index-Mapping**: Erstellt ein Wörterbuch, das jedem Wort im Vokabular einen eindeutigen Index zuordnet.
+# 
+
+# # Start- und End-Token bei Klassifikationsaufgaben
+# 
+# ## Nicht notwendig für:
+# 1. Sentiment-Analyse
+# 2. Textklassifikation (z.B. Themen- oder Genreklassifikation)
+# 3. Andere Aufgaben, bei denen eine einzelne Klassifikation für den gesamten Text vorgenommen wird
+# 
+# ## Gründe:
+# 1. Klassifikationsmodelle betrachten den gesamten Text als eine Einheit.
+# 2. Die Reihenfolge der Wörter ist wichtig, aber Start und Ende haben keine besondere Bedeutung.
+# 3. Das Modell muss keine Sequenz generieren oder den Anfang/Ende einer Sequenz erkennen.
+# 
+# ## Wann sind sie nützlich?
+# 1. Sequenz-zu-Sequenz-Aufgaben (z.B. Übersetzung, Zusammenfassung)
+# 2. Textgenerierung
+# 3. Aufgaben, bei denen die Länge der Eingabe oder Ausgabe variabel ist und erkannt werden muss
+# 
+# ## Alternative für Klassifikation:
+# - Stattdessen können Sie ein spezielles Padding-Token verwenden, um alle Eingaben auf die gleiche Länge zu bringen.
+
+# In[163]:
+
 
 # Vokabular erstellen
 # auch hier sollte ich noch verschiedene Häufigkeiten von den Wörter testen
@@ -100,6 +304,9 @@ print(word_to_idx)
 print(word_to_idx['and'])
 
 
+# In[164]:
+
+
 #weißt den einzelneen Wörtern einem Index zu
 import json
 
@@ -111,6 +318,25 @@ with open(json_file_path, 'w') as json_file:
     json.dump(word_to_idx, json_file, indent=4)
 
 print(f"word_to_idx wurde gespeichert in: {json_file_path}")
+
+
+# ### Erklärung des Codes
+# 
+# - **Funktion**: `tokens_to_indices` wandelt Tokens in Indizes um und fügt Padding hinzu.
+#   
+# - **Umwandlung der Tokens in Indizes**:
+#   - Jedes Wort wird in seinen numerischen Index umgewandelt.
+#   - Bei unbekannten Wörtern wird der Index für `<UNK>` verwendet.
+#   - Die Anzahl der Tokens wird auf eine maximale Länge (`MAX_LEN`) begrenzt.
+# 
+# - **Padding hinzufügen**:
+#   - Wenn die Liste der Indizes kürzer als `MAX_LEN` ist, werden `<PAD>`-Indizes hinzugefügt.
+#   
+# - **Rückgabe**:
+#   - Die Funktion gibt die vollständige Liste der Indizes zurück, ergänzt durch das erforderliche Padding, sodass alle Ausgaben eine einheitliche Länge haben.
+# 
+
+# In[165]:
 
 
 def tokens_to_indices(tokens):
@@ -130,6 +356,9 @@ print(test_indices[0])
 print(len(test_indices[0]))
 
 
+# In[166]:
+
+
 import json
 
 # Pfad für die JSON-Datei
@@ -141,6 +370,10 @@ with open(json_file_path, 'w') as json_file:
 
 print(f"test_indices wurde gespeichert in: {json_file_path}")
 
+
+# In[167]:
+
+
 import json
 
 # Pfad für die JSON-Datei
@@ -151,6 +384,9 @@ with open(json_file_path, 'w') as json_file:
     json.dump(test_labels, json_file, indent=4)
 
 print(f"test_labels wurde gespeichert in: {json_file_path}")
+
+
+# In[168]:
 
 
 import json
@@ -165,6 +401,8 @@ with open(json_file_path, 'w') as json_file:
 print(f"train_labels wurde gespeichert in: {json_file_path}")
 
 
+# In[169]:
+
 
 import json
 
@@ -176,6 +414,30 @@ with open(json_file_path, 'w') as json_file:
     json.dump(train_indices, json_file, indent=4)
 
 print(f"train_indices wurde gespeichert in: {json_file_path}")
+
+
+# # `Dataset`-Klasse in PyTorch
+# 
+# - **Zweck:** 
+#   - Die `Dataset`-Klasse in PyTorch ist eine abstrakte Klasse, die als Basis für Datensatzklassen dient. Sie ermöglicht das einfache Laden und Verarbeiten von Daten für maschinelles Lernen.
+# 
+# - **Erweiterung:** 
+#   - Durch das Erben von `Dataset` können Entwickler ihre eigenen Datensatzklassen erstellen, die spezifisch auf die Anforderungen ihrer Anwendung abgestimmt sind.
+# 
+# - **Methoden:**
+#   - **`__len__`**: Diese Methode gibt die Anzahl der Elemente im Datensatz zurück. Sie ermöglicht es, die Größe des Datensatzes zu bestimmen, was für die Erstellung von Mini-Batches wichtig ist.
+#   
+#   - **`__getitem__`**: Diese Methode ermöglicht den Zugriff auf die einzelnen Elemente im Datensatz. Sie nimmt einen Index als Parameter und gibt das entsprechende Datenpaar (z.B. Eingabe und Label) zurück. Dies ist besonders nützlich für die Iteration über den Datensatz in einem Trainingsprozess.
+# 
+# - **Integration mit DataLoader:**
+#   - Die `Dataset`-Klasse arbeitet nahtlos mit der `DataLoader`-Klasse zusammen, die das Laden von Daten in Batches, das Mischen der Daten und die parallele Verarbeitung ermöglicht. Dies verbessert die Effizienz beim Training von Modellen.
+# 
+# - **Flexibilität:**
+#   - Die Anpassung der `Dataset`-Klasse erlaubt es Entwicklern, Daten aus verschiedenen Quellen (wie Dateien, Datenbanken oder APIs) zu laden und sie in einem einheitlichen Format bereitzustellen, was die Wiederverwendbarkeit und Lesbarkeit des Codes verbessert.
+# 
+# 
+
+# In[170]:
 
 
 import json
@@ -214,6 +476,8 @@ class CustomDataset(Dataset):
         return review, label
 
 
+# In[171]:
+
 
 training_data  = CustomDataset("outputs/train_indices.json", "outputs/train_labels.json")
 train_loader = torch.utils.data.DataLoader(training_data, batch_size=BATCH_SIZE, shuffle=True)
@@ -223,10 +487,13 @@ print(f"Labels batch shape: {train_labels.shape}")
 
 
 test_data  = CustomDataset("outputs/test_indices.json", "outputs/test_labels.json")
-test_loader = torch.utils.data.DataLoader(training_data, batch_size=BATCH_SIZE, shuffle=True)
+test_loader = torch.utils.data.DataLoader(test_data, batch_size=BATCH_SIZE, shuffle=True)
 train_features, train_labels = next(iter(train_loader))
 print(f"Feature batch shape: {train_features.shape}")
 print(f"Labels batch shape: {train_labels.shape}")
+
+
+# In[172]:
 
 
 #muss noch gemacht werden. Bin mir nicht genau sicher wie genau und wann ich das brauche
@@ -241,18 +508,22 @@ def create_mask(self, sequence):
 #mask = create_mask(self, sequence)
 
 
+# In[173]:
+
+
 class Embedding(nn.Module):
     def __init__(self, vocab_size, embedding_dim, max_len):
         super(Embedding, self).__init__()
         self.embedding_dim = embedding_dim
+        self.dropout = nn.Dropout(0.1)
         self.max_len = max_len
         self.embedding = nn.Embedding(vocab_size, embedding_dim)
-        self.postitional_encoding = self.create_positional_encoding(max_len, embedding_dim)
+        self.postitional_encoding = self.create_positional_encoding(max_len, embedding_dim).to(DEVICE)
         
     def create_positional_encoding(self, max_len, embedding_dim):
         positional_encoding = torch.zeros(max_len, embedding_dim)
         for pos in range(max_len):
-            for i in range(embedding_dim, 2):
+            for i in range(0,embedding_dim, 2):
                 positional_encoding[pos, i] = math.sin(pos / (10000 ** (( 2 * i) / embedding_dim)))
                 positional_encoding[pos, i + 1] = math.cos(pos / (10000 ** (( 2* (i + 1))/ embedding_dim)))
                 
@@ -262,11 +533,15 @@ class Embedding(nn.Module):
         
     def forward(self, encoded_data):
         embeddings = self.embedding(encoded_data) * math.sqrt(self.embedding_dim) # (batch_size, max_len, embedding_dim)
+        embeddings = embeddings.to(DEVICE)
         max_words = embeddings.size(1)
         embeddings = embeddings + self.postitional_encoding[:, :max_words] # positional_encoding wird automatisch auf die richtige Größe geändert
         embeddings = self.dropout(embeddings)
         return embeddings
         
+
+
+# In[174]:
 
 
 class EncoderClassifier(nn.Module):
@@ -291,8 +566,11 @@ class EncoderClassifier(nn.Module):
         x = self.encoder(x)
         x = self.dropout(x)
         x = x.max(dim=1)[0]
-        out = self.linear(x)
+        out = self.classifier(x)
         return out 
+
+
+# In[175]:
 
 
 class AdamWarmup():
@@ -324,6 +602,9 @@ class AdamWarmup():
     
 
 
+# In[176]:
+
+
 model = EncoderClassifier(len(vocab), EMBED_DIM, MAX_LEN, NUM_ENCODER_LAYERS, NUM_HEADS).to(DEVICE)
 print(model)
 adam_opimizer = torch.optim.Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9)
@@ -332,28 +613,30 @@ criterion = nn.BCEWithLogitsLoss()
 
 
 
+# In[181]:
+
 
 def train(model, train_loader, criterion, epoch):
     model.train()
     print("Training ist starting...")
     
-
+    sum_loss = 0
     counter = 0
     for batch_idx, (data, target) in enumerate(train_loader):
-        data = data.to(DEVICE), 
+        data = data.to(DEVICE)
         target = target.to(DEVICE)
         
         #Run the model
-        output = model(data)
+        outputs = model(data).to(DEVICE)
         
         #Der Aufruf torch.squeeze(outputs, -1) sorgt also dafür, dass die Ausgabe des Modells dieselbe Dimension wie die Labels hat und für die Berechnung des Loss vorbereitet ist.
         outputs = torch.squeeze(outputs, -1)
-        loss = criterion(output, target)
+        loss = criterion(outputs, target.float())
         
         #Backpropagation
-        adam_opimizer.optimizer.zero_grad()
+        transformer_optimizer.optimizer.zero_grad()
         loss.backward()
-        adam_opimizer.step()
+        transformer_optimizer.step()
         
         samples = data.shape[0]
         
@@ -361,53 +644,87 @@ def train(model, train_loader, criterion, epoch):
         counter += samples
         
         #Print the results
+        '''
         if batch_idx % 100 == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx, len(train_loader),
                 100. * batch_idx / len(train_loader), sum_loss / counter))
+        '''
+            
+      
+    final_loss = sum_loss / counter    
+    
+    print('Average Loss: {:.6f}'.format(final_loss))
+            
         
         
 
 
-#lass ich beim Training erstmal weg. Kann später noch einmal probieren
-def validate(model, test_loader, criterion, device):
+# In[182]:
+
+
+def validate(model, test_loader, criterion, epoch):
     model.eval()
     print("Evaluating...")
-    valid_running_loss = 0.0
     valid_running_correct = 0
     counter = 0
+    sum_loss = 0
+    
     with torch.no_grad():
-        for data, target in test_loader:
-            counter += 1
-            data = data.to(device)
-            target = target.to(device)
+        for batch_idx, (data, target) in enumerate(test_loader):
+            data = data.to(DEVICE)
+            target = target.to(DEVICE)
+            
             outputs = model(data)
             outputs = torch.squeeze(outputs, -1)
-
-            test_loss = criterion(outputs, target)
-            valid_running_loss += test_loss.item()
-            valid_running_correct += count_correct_incorrect(target, outputs, valid_running_correct)
             
-    print("Validation loss: {:.4f}".format(valid_running_loss / counter))
-    print("Validation accuracy: {:.4f}".format( 100. * valid_running_correct / len(test_loader.dataset)))
+            samples = data.shape[0]
+            loss = criterion(outputs, target.float())
+            
+            sum_loss += loss.item() * samples
+            counter += samples
+            valid_running_correct += count_correct_incorrect(target, outputs)
+            
+            # Progress Update während der Validation
+            '''
+            if batch_idx % 100 == 0:
+                current_loss = sum_loss / counter
+                current_acc = 100. * valid_running_correct / counter  # Benutze counter statt dataset.length
+                print('Validation Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                    epoch, batch_idx * len(data), len(test_loader.dataset),
+                    100. * batch_idx / len(test_loader), current_loss))
+                print("Current validation accuracy: {:.4f}%".format(current_acc))
+            '''
+
+    # Finale Metriken am Ende der Validation
+    final_loss = sum_loss / counter
+    final_accuracy = 100. * valid_running_correct / len(test_loader.dataset)
     
-def count_correct_incorrect(labels, outputs, train_running_correct):
-    # As the outputs are currently logits.
+    print('Average Loss: {:.6f}'.format(final_loss))
+    print("Final accuracy: {:.4f}%".format(final_accuracy))
+    
+    return final_loss, final_accuracy
+
+def count_correct_incorrect(labels, outputs):
     outputs = torch.sigmoid(outputs)
-    running_correct = 0
-    for i, label in enumerate(labels):
-        if label < 0.5 and outputs[i] < 0.5:
-            running_correct += 1
-        elif label >= 0.5 and outputs[i] >= 0.5:
-            running_correct += 1
-    return running_correct
+    predictions = (outputs >= 0.5).float()
+    correct = (predictions == labels).sum().item()
+    return correct
+
+
+# In[183]:
+
 
 for epoch in range(EPOCHS):
     print(f"[INFO]: Epoch {epoch+1} of {EPOCHS}")
     train( model=model,train_loader=train_loader, criterion=criterion, epoch=epoch)
-    validate( model=model, val_loader=test_loader, criterion=criterion, epoch=epoch)
+    validate( model=model, test_loader=test_loader, criterion=criterion, epoch=epoch)
     torch.save(model.state_dict(), f"models/transformer_classification_{epoch+1}.pt")
     
 
 
+# In[ ]:
+
+
+checkpoint_path = 'models/transformer_classification/model.pt'
 
